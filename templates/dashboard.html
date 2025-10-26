@@ -1,0 +1,1413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PPE Monitoring Dashboard - Worker Safety Monitoring System</title>
+    <meta name="description" content="Real-time Personal Protective Equipment detection and monitoring dashboard for worker safety">
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --primary-dark: #1a252f;
+            --secondary: #34495e;
+            --success: #27ae60;
+            --success-dark: #219653;
+            --warning: #f39c12;
+            --warning-dark: #e67e22;
+            --danger: #e74c3c;
+            --danger-dark: #c0392b;
+            --info: #3498db;
+            --light: #ecf0f1;
+            --dark: #2c3e50;
+            --text: #2c3e50;
+            --text-light: #7f8c8d;
+            --background: #f5f6fa;
+            --surface: #ffffff;
+        }
+        
+        /* Focus styles */
+        *:focus {
+            outline: 3px solid var(--info);
+            outline-offset: 2px;
+        }
+        
+        .btn:focus, 
+        .menu-toggle:focus,
+        .sidebar-nav a:focus {
+            outline: 3px solid var(--info);
+            outline-offset: 2px;
+            background-color: var(--info);
+            color: white;
+        }
+        
+        /* High contrast mode support */
+        @media (prefers-contrast: high) {
+            :root {
+                --primary: #000000;
+                --secondary: #333333;
+                --success: #006600;
+                --warning: #663300;
+                --danger: #990000;
+                --info: #0066cc;
+            }
+            
+            .stat-card, .chart-container, .data-table {
+                border: 2px solid var(--primary);
+            }
+        }
+        
+        /* Reduced motion support */
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--background);
+            color: var(--text);
+            line-height: 1.6;
+            font-size: 16px;
+        }
+        
+        /* Skip to main content link */
+        .skip-link {
+            position: absolute;
+            top: -40px;
+            left: 6px;
+            background: var(--primary);
+            color: white;
+            padding: 8px 12px;
+            text-decoration: none;
+            border-radius: 0 0 4px 4px;
+            z-index: 10000;
+            transition: top 0.3s ease;
+        }
+        
+        .skip-link:focus {
+            top: 0;
+            outline: 3px solid var(--info);
+        }
+        
+        /* Mobile First Approach */
+        .dashboard {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        
+        /* Sidebar for Mobile - Hidden by default */
+        .sidebar {
+            background: var(--primary);
+            color: white;
+            padding: 1rem;
+            position: fixed;
+            top: 0;
+            left: -100%;
+            width: 280px;
+            height: 100vh;
+            overflow-y: auto;
+            transition: left 0.3s ease;
+            z-index: 1000;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+        }
+        
+        .sidebar.active {
+            left: 0;
+        }
+        
+        .sidebar-header {
+            text-align: center;
+            padding: 1rem 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .sidebar-nav {
+            list-style: none;
+        }
+        
+        .sidebar-nav li {
+            margin-bottom: 0.5rem;
+        }
+        
+        .sidebar-nav a {
+            color: white;
+            text-decoration: none;
+            padding: 0.75rem 1rem;
+            display: block;
+            border-radius: 5px;
+            transition: background 0.3s;
+            font-size: 0.95rem;
+            border: 2px solid transparent;
+        }
+        
+        .sidebar-nav a:hover, 
+        .sidebar-nav a.active,
+        .sidebar-nav a:focus {
+            background: rgba(255,255,255,0.1);
+            border-color: var(--info);
+        }
+        
+        .sidebar-nav a[aria-current="page"] {
+            background: rgba(255,255,255,0.2);
+            font-weight: bold;
+        }
+        
+        .main-content {
+            flex: 1;
+            padding: 1rem;
+            width: 100%;
+        }
+        
+        /* Mobile Header with Menu Button */
+        .mobile-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--surface);
+            padding: 1rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 1rem;
+        }
+        
+        .menu-toggle {
+            background: none;
+            border: 2px solid var(--primary);
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--primary);
+            padding: 0.5rem;
+            border-radius: 5px;
+            min-width: 44px;
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .menu-toggle:hover {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .header-content h1 {
+            font-size: 1.25rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        .header-content p {
+            font-size: 0.9rem;
+            color: var(--text-light);
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .stat-card {
+            background: var(--surface);
+            padding: 1.25rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+            transition: transform 0.2s ease;
+            border: 2px solid transparent;
+        }
+        
+        .stat-card:focus-within {
+            border-color: var(--info);
+            transform: translateY(-2px);
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-2px);
+        }
+        
+        .stat-card h3 {
+            color: var(--text-light);
+            font-size: 0.8rem;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+        
+        .stat-card .value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+        
+        /* Compliance status with sufficient color contrast */
+        .compliance-high { color: var(--success-dark); }
+        .compliance-medium { color: var(--warning-dark); }
+        .compliance-low { color: var(--danger-dark); }
+        
+        .chart-container {
+            background: var(--surface);
+            padding: 1.25rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 1.5rem;
+            height: 300px;
+            display: flex;
+            flex-direction: column;
+            border: 2px solid transparent;
+        }
+        
+        .chart-container:focus-within {
+            border-color: var(--info);
+        }
+        
+        .chart-container h3 {
+            margin-bottom: 1rem;
+            color: var(--primary);
+            flex-shrink: 0;
+            font-size: 1.1rem;
+        }
+        
+        .chart-container > div {
+            flex: 1;
+            min-height: 0;
+        }
+        
+        .charts-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .data-table {
+            background: var(--surface);
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+            border: 2px solid transparent;
+        }
+        
+        .data-table:focus-within {
+            border-color: var(--info);
+        }
+        
+        .table-container {
+            overflow-x: auto;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 600px;
+        }
+        
+        th, td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--light);
+            font-size: 0.9rem;
+        }
+        
+        th {
+            background: var(--light);
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+        
+        th[scope="col"] {
+            background: var(--primary);
+            color: white;
+        }
+        
+        th[scope="row"] {
+            background: var(--light);
+            font-weight: 600;
+        }
+        
+        /* Status indicators with text alternatives */
+        .status-compliant { 
+            color: var(--success-dark);
+            font-weight: 600;
+        }
+        .status-non-compliant { 
+            color: var(--danger-dark);
+            font-weight: 600;
+        }
+        .status-partially-compliant { 
+            color: var(--warning-dark);
+            font-weight: 600;
+        }
+        
+        /* Alert styles with sufficient contrast */
+        .alert-high { 
+            border-left: 4px solid var(--danger-dark);
+            background: #fee;
+        }
+        .alert-medium { 
+            border-left: 4px solid var(--warning-dark);
+            background: #fff3cd;
+        }
+        .alert-low { 
+            border-left: 4px solid var(--info);
+            background: #d1ecf1;
+        }
+        
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: background 0.3s ease;
+            min-width: 44px;
+            min-height: 44px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .btn-resolve {
+            background: var(--success);
+            color: white;
+        }
+        
+        .btn-resolve:hover,
+        .btn-resolve:focus {
+            background: var(--success-dark);
+        }
+        
+        .ppe-indicators {
+            display: flex;
+            gap: 0.25rem;
+            flex-wrap: wrap;
+        }
+        
+        .ppe-indicator {
+            padding: 0.25rem 0.5rem;
+            border-radius: 3px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            border: 1px solid transparent;
+        }
+        
+        .ppe-present { 
+            background: var(--success); 
+            color: white;
+            border-color: var(--success-dark);
+        }
+        .ppe-missing { 
+            background: var(--danger); 
+            color: white;
+            border-color: var(--danger-dark);
+        }
+        
+        #alertsContainer {
+            height: 100%;
+            overflow-y: auto;
+        }
+        
+        .alert {
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            background: var(--surface);
+            border-left: 4px solid;
+            border-radius: 5px;
+        }
+        
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+            display: none;
+        }
+        
+        .overlay.active {
+            display: block;
+        }
+        
+        /* Screen reader only content */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+        
+        /* Loading states */
+        .loading {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+        
+        .loading::after {
+            content: " (Loading...)";
+            font-style: italic;
+        }
+        
+        /* Error states */
+        .error-message {
+            background: #fee;
+            color: var(--danger-dark);
+            padding: 1rem;
+            border-radius: 5px;
+            border-left: 4px solid var(--danger);
+            margin: 1rem 0;
+        }
+        
+        /* Success states */
+        .success-message {
+            background: #efe;
+            color: var(--success-dark);
+            padding: 1rem;
+            border-radius: 5px;
+            border-left: 4px solid var(--success);
+            margin: 1rem 0;
+        }
+
+        /* Tablet Styles */
+        @media (min-width: 768px) {
+            .main-content {
+                padding: 1.5rem;
+            }
+            
+            .mobile-header {
+                padding: 1.5rem;
+            }
+            
+            .header-content h1 {
+                font-size: 1.5rem;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+                gap: 1.5rem;
+            }
+            
+            .stat-card {
+                padding: 1.5rem;
+            }
+            
+            .stat-card .value {
+                font-size: 1.75rem;
+            }
+            
+            .chart-container {
+                height: 350px;
+                padding: 1.5rem;
+            }
+            
+            .charts-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 1.5rem;
+            }
+            
+            th, td {
+                padding: 1rem 1.25rem;
+            }
+        }
+        
+        /* Desktop Styles */
+        @media (min-width: 1024px) {
+            .dashboard {
+                flex-direction: row;
+            }
+            
+            .sidebar {
+                position: relative;
+                left: 0;
+                width: 280px;
+                height: 100vh;
+                position: sticky;
+                top: 0;
+            }
+            
+            .sidebar-header .close-menu {
+                display: none;
+            }
+            
+            .mobile-header {
+                display: none;
+            }
+            
+            .main-content {
+                padding: 2rem;
+                width: calc(100% - 280px);
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 2rem;
+            }
+            
+            .stat-card .value {
+                font-size: 2rem;
+            }
+            
+            .chart-container {
+                height: 400px;
+                padding: 2rem;
+            }
+            
+            .header {
+                background: var(--surface);
+                padding: 2rem;
+                border-radius: 10px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                margin-bottom: 2rem;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+                margin-bottom: 0.5rem;
+            }
+            
+            .header p {
+                font-size: 1.1rem;
+                color: var(--text-light);
+            }
+        }
+        
+        /* Large Desktop Styles */
+        @media (min-width: 1440px) {
+            .main-content {
+                padding: 2.5rem;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+            
+            .chart-container {
+                height: 450px;
+            }
+        }
+        
+        /* Print Styles */
+        @media print {
+            .sidebar, .menu-toggle, .btn-resolve {
+                display: none;
+            }
+            
+            .main-content {
+                width: 100%;
+                padding: 0;
+            }
+            
+            .stat-card, .chart-container, .data-table {
+                box-shadow: none;
+                border: 2px solid #ddd;
+                break-inside: avoid;
+            }
+            
+            .alert {
+                border: 1px solid #000;
+            }
+            
+            a::after {
+                content: " (" attr(href) ")";
+            }
+        }
+
+        /* Dark mode support */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --primary: #3498db;
+                --primary-dark: #2980b9;
+                --secondary: #34495e;
+                --text: #ecf0f1;
+                --text-light: #bdc3c7;
+                --background: #2c3e50;
+                --surface: #34495e;
+                --light: #4a5f7a;
+            }
+            
+            body {
+                background-color: var(--background);
+                color: var(--text);
+            }
+            
+            .stat-card, .chart-container, .data-table, .mobile-header, .header {
+                background: var(--surface);
+                color: var(--text);
+            }
+            
+            .stat-card h3 {
+                color: var(--text-light);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Skip to main content link for keyboard users -->
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    
+    <div class="dashboard">
+        <!-- Mobile Menu Overlay -->
+        <div class="overlay" id="overlay" aria-hidden="true"></div>
+        
+        <!-- Sidebar -->
+        <nav class="sidebar" id="sidebar" aria-label="Main navigation">
+            <div class="sidebar-header">
+                <div>
+                    <h1>PPE Monitor</h1>
+                    <p>Worker Safety Dashboard</p>
+                </div>
+                <button class="menu-toggle close-menu" id="closeMenu" aria-label="Close menu">
+                    <span aria-hidden="true">✕</span>
+                </button>
+            </div>
+            <ul class="sidebar-nav" role="menubar">
+                <li role="none">
+                    <a href="#" class="active" role="menuitem" aria-current="page">
+                        <span class="sr-only">Current Page: </span>Dashboard
+                    </a>
+                </li>
+                <li role="none"><a href="#" role="menuitem">Worker Compliance</a></li>
+                <li role="none"><a href="#" role="menuitem">Alerts</a></li>
+                <li role="none"><a href="#" role="menuitem">Reports</a></li>
+                <li role="none"><a href="#" role="menuitem">Settings</a></li>
+            </ul>
+        </nav>
+        
+        <!-- Main Content -->
+        <main id="main-content" class="main-content" tabindex="-1">
+            <!-- Mobile Header -->
+            <div class="mobile-header">
+                <button class="menu-toggle" id="menuToggle" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar">
+                    <span aria-hidden="true">☰</span>
+                </button>
+                <div class="header-content">
+                    <h1>PPE Monitoring</h1>
+                    <p>Real-time Safety Detection</p>
+                </div>
+                <div style="width: 44px;" aria-hidden="true"></div>
+            </div>
+            
+            <!-- Desktop Header -->
+            <header class="header">
+                <h1>PPE Monitoring Dashboard</h1>
+                <p>Real-time Personal Protective Equipment Detection</p>
+            </header>
+            
+            <!-- Live region for updates -->
+            <div id="live-region" aria-live="polite" aria-atomic="true" class="sr-only"></div>
+            
+            <!-- Stats Grid -->
+            <section aria-labelledby="stats-heading">
+                <h2 id="stats-heading" class="sr-only">Dashboard Statistics</h2>
+                <div class="stats-grid" id="statsGrid">
+                    <div class="stat-card" tabindex="0">
+                        <h3>Total Workers</h3>
+                        <div class="value" aria-live="polite">0</div>
+                    </div>
+                    <div class="stat-card" tabindex="0">
+                        <h3>Today's Detections</h3>
+                        <div class="value" aria-live="polite">0</div>
+                    </div>
+                    <div class="stat-card" tabindex="0">
+                        <h3>Active Alerts</h3>
+                        <div class="value" aria-live="polite">0</div>
+                    </div>
+                    <div class="stat-card" tabindex="0">
+                        <h3>Overall Compliance</h3>
+                        <div class="value compliance-high" aria-live="polite">0%</div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Compliance Trends Chart -->
+            <section aria-labelledby="compliance-trends-heading">
+                <h2 id="compliance-trends-heading">Compliance Trends (Last 7 Days)</h2>
+                <div class="chart-container">
+                    <div id="complianceChart" style="height: 100%; width: 100%;" role="img" aria-label="Line chart showing compliance trends over the last 7 days"></div>
+                </div>
+            </section>
+            
+            <!-- Charts Grid -->
+            <section aria-labelledby="charts-heading">
+                <h2 id="charts-heading" class="sr-only">Charts and Alerts</h2>
+                <div class="charts-grid">
+                    <section aria-labelledby="ppe-usage-heading">
+                        <h3 id="ppe-usage-heading">PPE Usage Rates</h3>
+                        <div class="chart-container">
+                            <div id="ppeUsageChart" style="height: 100%; width: 100%;" role="img" aria-label="Bar chart showing usage rates for different PPE items including helmet, vest, gloves, goggles, boots, and mask"></div>
+                        </div>
+                    </section>
+                    
+                    <section aria-labelledby="alerts-heading">
+                        <h3 id="alerts-heading">Active Alerts</h3>
+                        <div class="chart-container">
+                            <div id="alertsContainer" aria-live="polite" aria-atomic="false">
+                                <p>Loading alerts...</p>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </section>
+            
+            <!-- Recent Detections Table -->
+            <section aria-labelledby="detections-heading">
+                <h2 id="detections-heading">Recent Detections</h2>
+                <div class="data-table">
+                    <div class="table-container">
+                        <table>
+                            <caption class="sr-only">
+                                Recent PPE detection records showing worker information, detection time, PPE status, compliance level, and camera location
+                            </caption>
+                            <thead>
+                                <tr>
+                                    <th scope="col">Worker</th>
+                                    <th scope="col">Department</th>
+                                    <th scope="col">Time</th>
+                                    <th scope="col">PPE Status</th>
+                                    <th scope="col">Compliance</th>
+                                    <th scope="col">Location</th>
+                                </tr>
+                            </thead>
+                            <tbody id="detectionsBody">
+                                <tr>
+                                    <td colspan="6">Loading recent detections...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        // Global chart variables
+        let complianceChart = null;
+        let ppeUsageChart = null;
+        let liveRegion = document.getElementById('live-region');
+
+        // Announce updates to screen readers
+        function announceUpdate(message) {
+            if (liveRegion) {
+                liveRegion.textContent = message;
+                // Clear after a delay so subsequent announcements work
+                setTimeout(() => {
+                    liveRegion.textContent = '';
+                }, 1000);
+            }
+        }
+
+        // Mobile menu functionality
+        const menuToggle = document.getElementById('menuToggle');
+        const closeMenu = document.getElementById('closeMenu');
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('overlay');
+
+        function toggleMenu() {
+            const isOpening = !sidebar.classList.contains('active');
+            sidebar.classList.toggle('active');
+            overlay.classList.toggle('active');
+            document.body.style.overflow = sidebar.classList.contains('active') ? 'hidden' : '';
+            
+            // Update ARIA attributes
+            if (menuToggle) {
+                menuToggle.setAttribute('aria-expanded', isOpening);
+            }
+            
+            // Trap focus in menu when open
+            if (isOpening) {
+                trapFocus(sidebar);
+            }
+            
+            announceUpdate(isOpening ? 'Menu opened' : 'Menu closed');
+        }
+
+        // Focus trap for mobile menu
+        function trapFocus(element) {
+            const focusableElements = element.querySelectorAll(
+                'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+            );
+            const firstElement = focusableElements[0];
+            const lastElement = focusableElements[focusableElements.length - 1];
+
+            element.addEventListener('keydown', function(e) {
+                if (e.key === 'Tab') {
+                    if (e.shiftKey) {
+                        if (document.activeElement === firstElement) {
+                            e.preventDefault();
+                            lastElement.focus();
+                        }
+                    } else {
+                        if (document.activeElement === lastElement) {
+                            e.preventDefault();
+                            firstElement.focus();
+                        }
+                    }
+                }
+            });
+
+            firstElement.focus();
+        }
+
+        if (menuToggle) {
+            menuToggle.addEventListener('click', toggleMenu);
+        }
+        if (closeMenu) {
+            closeMenu.addEventListener('click', toggleMenu);
+        }
+        if (overlay) {
+            overlay.addEventListener('click', toggleMenu);
+        }
+
+        // Close menu when clicking on menu items (mobile)
+        document.querySelectorAll('.sidebar-nav a').forEach(link => {
+            link.addEventListener('click', () => {
+                if (window.innerWidth < 1024) {
+                    toggleMenu();
+                }
+            });
+        });
+
+        // Handle window resize
+        window.addEventListener('resize', function() {
+            if (window.innerWidth >= 1024) {
+                sidebar.classList.remove('active');
+                overlay.classList.remove('active');
+                document.body.style.overflow = '';
+                if (menuToggle) {
+                    menuToggle.setAttribute('aria-expanded', 'false');
+                }
+            }
+        });
+
+        // Keyboard navigation
+        document.addEventListener('keydown', function(e) {
+            // Escape key closes mobile menu
+            if (e.key === 'Escape' && sidebar.classList.contains('active')) {
+                toggleMenu();
+            }
+        });
+
+        // Update dashboard every 5 seconds
+        setInterval(updateDashboard, 5000);
+        
+        // Initial load
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Dashboard loaded - initializing charts');
+            updateDashboard();
+            updateComplianceTrends();
+            updateAlerts();
+            updateRecentDetections();
+            
+            // Announce page load to screen readers
+            setTimeout(() => {
+                announceUpdate('PPE Monitoring Dashboard loaded. Showing real-time worker safety data.');
+            }, 1000);
+        });
+        
+        async function updateDashboard() {
+            try {
+                console.log('Updating dashboard stats...');
+                const response = await fetch('/api/dashboard_stats');
+                const data = await response.json();
+                
+                document.getElementById('statsGrid').innerHTML = `
+                    <div class="stat-card" tabindex="0">
+                        <h3>Total Workers</h3>
+                        <div class="value" aria-live="polite">${data.total_workers}</div>
+                    </div>
+                    <div class="stat-card" tabindex="0">
+                        <h3>Today's Detections</h3>
+                        <div class="value" aria-live="polite">${data.today_detections}</div>
+                    </div>
+                    <div class="stat-card" tabindex="0">
+                        <h3>Active Alerts</h3>
+                        <div class="value" aria-live="polite">${data.active_alerts}</div>
+                    </div>
+                    <div class="stat-card" tabindex="0">
+                        <h3>Overall Compliance</h3>
+                        <div class="value compliance-${getComplianceClass(data.overall_compliance)}" aria-live="polite">
+                            ${data.overall_compliance}%
+                        </div>
+                    </div>
+                `;
+                
+                updatePpeUsageChart(data.avg_ppe_usage);
+                
+                // Announce updates to screen readers
+                if (data.active_alerts > 0) {
+                    announceUpdate(`${data.active_alerts} active alerts. Overall compliance is ${data.overall_compliance} percent.`);
+                }
+                
+            } catch (error) {
+                console.error('Error updating dashboard:', error);
+                document.getElementById('statsGrid').innerHTML = `
+                    <div class="stat-card" tabindex="0">
+                        <h3>Total Workers</h3>
+                        <div class="value">-</div>
+                    </div>
+                    <div class="stat-card" tabindex="0">
+                        <h3>Today's Detections</h3>
+                        <div class="value">-</div>
+                    </div>
+                    <div class="stat-card" tabindex="0">
+                        <h3>Active Alerts</h3>
+                        <div class="value">-</div>
+                    </div>
+                    <div class="stat-card" tabindex="0">
+                        <h3>Overall Compliance</h3>
+                        <div class="value">-</div>
+                    </div>
+                `;
+                
+                announceUpdate('Error loading dashboard data');
+            }
+        }
+        
+        async function updateComplianceTrends() {
+            try {
+                console.log('Updating compliance trends...');
+                const response = await fetch('/api/compliance_trends');
+                const data = await response.json();
+                
+                const dates = data.map(item => {
+                    const date = new Date(item.date);
+                    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                });
+                const complianceRates = data.map(item => item.compliance_rate);
+                
+                const options = {
+                    series: [{
+                        name: 'Compliance Rate',
+                        data: complianceRates
+                    }],
+                    chart: {
+                        height: '100%',
+                        type: 'line',
+                        zoom: {
+                            enabled: false
+                        },
+                        toolbar: {
+                            show: window.innerWidth >= 768
+                        },
+                        animations: {
+                            enabled: !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+                        }
+                    },
+                    dataLabels: {
+                        enabled: false
+                    },
+                    stroke: {
+                        curve: 'smooth',
+                        width: 3
+                    },
+                    colors: ['#3498db'],
+                    grid: {
+                        borderColor: '#e7e7e7',
+                        row: {
+                            colors: ['#f3f3f3', 'transparent'],
+                            opacity: 0.5
+                        },
+                    },
+                    markers: {
+                        size: window.innerWidth < 768 ? 3 : 5
+                    },
+                    xaxis: {
+                        categories: dates,
+                        labels: {
+                            style: {
+                                fontSize: window.innerWidth < 768 ? '10px' : '12px'
+                            }
+                        }
+                    },
+                    yaxis: {
+                        min: 0,
+                        max: 100,
+                        title: {
+                            text: 'Compliance Rate (%)'
+                        },
+                        labels: {
+                            style: {
+                                fontSize: window.innerWidth < 768 ? '10px' : '12px'
+                            }
+                        }
+                    },
+                    tooltip: {
+                        y: {
+                            formatter: function (val) {
+                                return val + "%"
+                            }
+                        }
+                    }
+                };
+                
+                const chartElement = document.querySelector("#complianceChart");
+                if (chartElement) {
+                    if (complianceChart) {
+                        complianceChart.destroy();
+                    }
+                    complianceChart = new ApexCharts(chartElement, options);
+                    complianceChart.render();
+                    
+                    // Update ARIA label with current data
+                    const currentRate = complianceRates[complianceRates.length - 1] || 0;
+                    chartElement.setAttribute('aria-label', 
+                        `Line chart showing compliance trends over the last 7 days. Current compliance rate is ${currentRate} percent.`
+                    );
+                }
+            } catch (error) {
+                console.error('Error updating compliance trends:', error);
+            }
+        }
+        
+        function updatePpeUsageChart(ppeData) {
+            try {
+                console.log('Updating PPE usage chart...');
+                const options = {
+                    series: [{
+                        name: 'Usage Rate',
+                        data: [
+                            ppeData.helmet,
+                            ppeData.vest,
+                            ppeData.gloves,
+                            ppeData.goggles,
+                            ppeData.boots,
+                            ppeData.mask
+                        ]
+                    }],
+                    chart: {
+                        type: 'bar',
+                        height: '100%',
+                        toolbar: {
+                            show: window.innerWidth >= 768
+                        },
+                        animations: {
+                            enabled: !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+                        }
+                    },
+                    plotOptions: {
+                        bar: {
+                            borderRadius: 4,
+                            horizontal: true,
+                            dataLabels: {
+                                position: 'center'
+                            }
+                        }
+                    },
+                    colors: ['#27ae60'],
+                    dataLabels: {
+                        enabled: window.innerWidth >= 768,
+                        formatter: function (val) {
+                            return val + "%";
+                        },
+                        style: {
+                            fontSize: window.innerWidth < 768 ? '10px' : '12px',
+                            colors: ["#fff"]
+                        }
+                    },
+                    xaxis: {
+                        categories: ['Helmet', 'Vest', 'Gloves', 'Goggles', 'Boots', 'Mask'],
+                        max: 100,
+                        labels: {
+                            style: {
+                                fontSize: window.innerWidth < 768 ? '10px' : '12px'
+                            }
+                        }
+                    },
+                    yaxis: {
+                        labels: {
+                            style: {
+                                fontSize: window.innerWidth < 768 ? '10px' : '12px'
+                            }
+                        }
+                    },
+                    tooltip: {
+                        y: {
+                            formatter: function (val) {
+                                return val + "%"
+                            }
+                        }
+                    }
+                };
+                
+                const chartElement = document.querySelector("#ppeUsageChart");
+                if (chartElement) {
+                    if (ppeUsageChart) {
+                        ppeUsageChart.destroy();
+                    }
+                    ppeUsageChart = new ApexCharts(chartElement, options);
+                    ppeUsageChart.render();
+                    
+                    // Update ARIA label with current data
+                    const highestUsage = Math.max(...Object.values(ppeData));
+                    const lowestUsage = Math.min(...Object.values(ppeData));
+                    chartElement.setAttribute('aria-label',
+                        `Bar chart showing PPE usage rates. Highest usage is ${highestUsage} percent, lowest is ${lowestUsage} percent.`
+                    );
+                }
+            } catch (error) {
+                console.error('Error updating PPE usage chart:', error);
+            }
+        }
+        
+        async function updateAlerts() {
+            try {
+                console.log('Updating alerts...');
+                const response = await fetch('/api/alerts');
+                const alerts = await response.json();
+                
+                const alertsContainer = document.getElementById('alertsContainer');
+                if (!alertsContainer) return;
+                
+                alertsContainer.innerHTML = '';
+                
+                if (alerts.length === 0) {
+                    alertsContainer.innerHTML = '<p>No active alerts</p>';
+                    return;
+                }
+                
+                alerts.forEach(alert => {
+                    const alertElement = document.createElement('div');
+                    alertElement.className = `alert alert-${alert.severity.toLowerCase()}`;
+                    alertElement.setAttribute('role', 'alert');
+                    
+                    const time = new Date(alert.timestamp);
+                    const timeString = window.innerWidth < 768 ? 
+                        time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) :
+                        time.toLocaleString();
+                    
+                    alertElement.innerHTML = `
+                        <div style="display: flex; justify-content: space-between; align-items: start; gap: 1rem;">
+                            <div style="flex: 1;">
+                                <strong>${alert.worker_name}</strong>
+                                <br>
+                                <small>${timeString}</small>
+                                <br>
+                                <span style="color: ${getSeverityColor(alert.severity)}; font-weight: bold;">
+                                    ${alert.violation_type}
+                                </span>
+                                <br>
+                                <small>${alert.description}</small>
+                            </div>
+                            <button class="btn btn-resolve" onclick="resolveAlert(${alert.id})" aria-label="Resolve alert for ${alert.worker_name}">
+                                Resolve
+                            </button>
+                        </div>
+                    `;
+                    
+                    alertsContainer.appendChild(alertElement);
+                });
+                
+                // Announce new alerts to screen readers
+                if (alerts.length > 0) {
+                    announceUpdate(`New alert: ${alerts.length} active safety violations need attention.`);
+                }
+                
+            } catch (error) {
+                console.error('Error updating alerts:', error);
+                const alertsContainer = document.getElementById('alertsContainer');
+                if (alertsContainer) {
+                    alertsContainer.innerHTML = '<p class="error-message">Error loading alerts</p>';
+                }
+            }
+        }
+        
+        async function updateRecentDetections() {
+            try {
+                console.log('Updating recent detections...');
+                const response = await fetch('/api/recent_detections');
+                const detections = await response.json();
+                
+                const tbody = document.getElementById('detectionsBody');
+                if (!tbody) return;
+                
+                tbody.innerHTML = '';
+                
+                if (detections.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="6">No detections found</td>
+                        </tr>
+                    `;
+                    return;
+                }
+                
+                detections.forEach(detection => {
+                    const row = document.createElement('tr');
+                    
+                    const time = new Date(detection.timestamp);
+                    const timeString = window.innerWidth < 768 ? 
+                        time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) :
+                        time.toLocaleString();
+                    
+                    const ppeStatus = [
+                        `Helmet: ${detection.helmet ? 'Present' : 'Missing'}`,
+                        `Vest: ${detection.vest ? 'Present' : 'Missing'}`,
+                        `Gloves: ${detection.gloves ? 'Present' : 'Missing'}`,
+                        `Goggles: ${detection.goggles ? 'Present' : 'Missing'}`,
+                        `Boots: ${detection.boots ? 'Present' : 'Missing'}`,
+                        `Mask: ${detection.mask ? 'Present' : 'Missing'}`
+                    ].join(', ');
+                    
+                    const ppeIndicators = `
+                        <div class="ppe-indicators">
+                            <span class="ppe-indicator ${detection.helmet ? 'ppe-present' : 'ppe-missing'}" title="Helmet: ${detection.helmet ? 'Present' : 'Missing'}">H</span>
+                            <span class="ppe-indicator ${detection.vest ? 'ppe-present' : 'ppe-missing'}" title="Vest: ${detection.vest ? 'Present' : 'Missing'}">V</span>
+                            <span class="ppe-indicator ${detection.gloves ? 'ppe-present' : 'ppe-missing'}" title="Gloves: ${detection.gloves ? 'Present' : 'Missing'}">G</span>
+                            <span class="ppe-indicator ${detection.goggles ? 'ppe-present' : 'ppe-missing'}" title="Goggles: ${detection.goggles ? 'Present' : 'Missing'}">GG</span>
+                            <span class="ppe-indicator ${detection.boots ? 'ppe-present' : 'ppe-missing'}" title="Boots: ${detection.boots ? 'Present' : 'Missing'}">B</span>
+                            <span class="ppe-indicator ${detection.mask ? 'ppe-present' : 'ppe-missing'}" title="Mask: ${detection.mask ? 'Present' : 'Missing'}">M</span>
+                        </div>
+                    `;
+                    
+                    const statusClass = detection.status.toLowerCase().replace(' ', '-');
+                    
+                    row.innerHTML = `
+                        <td>${detection.worker_name}</td>
+                        <td>${detection.department}</td>
+                        <td><time datetime="${detection.timestamp}">${timeString}</time></td>
+                        <td aria-label="${ppeStatus}">${ppeIndicators}</td>
+                        <td class="status-${statusClass}">
+                            ${detection.status} (${detection.compliance_score}%)
+                        </td>
+                        <td>${detection.camera_location}</td>
+                    `;
+                    
+                    tbody.appendChild(row);
+                });
+            } catch (error) {
+                console.error('Error updating recent detections:', error);
+                const tbody = document.getElementById('detectionsBody');
+                if (tbody) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="6" class="error-message">Error loading detections</td>
+                        </tr>
+                    `;
+                }
+            }
+        }
+        
+        async function resolveAlert(alertId) {
+            try {
+                console.log('Resolving alert:', alertId);
+                const response = await fetch(`/api/resolve_alert/${alertId}`, {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    updateAlerts();
+                    updateDashboard();
+                    announceUpdate('Alert resolved successfully');
+                } else {
+                    console.error('Failed to resolve alert');
+                    announceUpdate('Error resolving alert');
+                }
+            } catch (error) {
+                console.error('Error resolving alert:', error);
+                announceUpdate('Error resolving alert');
+            }
+        }
+        
+        function getComplianceClass(rate) {
+            if (rate >= 90) return 'high';
+            if (rate >= 70) return 'medium';
+            return 'low';
+        }
+        
+        function getSeverityColor(severity) {
+            switch (severity.toLowerCase()) {
+                case 'high': return '#e74c3c';
+                case 'medium': return '#f39c12';
+                case 'low': return '#3498db';
+                default: return '#95a5a6';
+            }
+        }
+
+        // Handle window resize for charts
+        window.addEventListener('resize', function() {
+            if (complianceChart) {
+                complianceChart.updateOptions({
+                    chart: {
+                        toolbar: {
+                            show: window.innerWidth >= 768
+                        }
+                    },
+                    markers: {
+                        size: window.innerWidth < 768 ? 3 : 5
+                    },
+                    xaxis: {
+                        labels: {
+                            style: {
+                                fontSize: window.innerWidth < 768 ? '10px' : '12px'
+                            }
+                        }
+                    },
+                    yaxis: {
+                        labels: {
+                            style: {
+                                fontSize: window.innerWidth < 768 ? '10px' : '12px'
+                            }
+                        }
+                    }
+                });
+            }
+            
+            if (ppeUsageChart) {
+                ppeUsageChart.updateOptions({
+                    chart: {
+                        toolbar: {
+                            show: window.innerWidth >= 768
+                        }
+                    },
+                    dataLabels: {
+                        enabled: window.innerWidth >= 768
+                    },
+                    xaxis: {
+                        labels: {
+                            style: {
+                                fontSize: window.innerWidth < 768 ? '10px' : '12px'
+                            }
+                        }
+                    },
+                    yaxis: {
+                        labels: {
+                            style: {
+                                fontSize: window.innerWidth < 768 ? '10px' : '12px'
+                            }
+                        }
+                    }
+                });
+            }
+        });
+
+        // Initialize reduced motion preference
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            document.documentElement.style.setProperty('--transition-speed', '0.01ms');
+        }
+    </script>
+</body>
+</html>
